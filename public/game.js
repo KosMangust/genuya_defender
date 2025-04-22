@@ -1,17 +1,20 @@
-<!DOCTYPE html>
-<html lang="ru">
-<head>
-  <meta charset="UTF-8">
-  <title>Игра: Защита объекта</title>
-  <style>
-    canvas {
-      border: 1px solid black;
-    }
-  </style>
-</head>
-<body>
-  <canvas id="gameCanvas" width="800" height="600"></canvas>
-  <script>
+const socket = io(); // Подключение к серверу (пока не используется, но готово для мультиплеера)
+
+// Получение канваса и контекста
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+// Загрузка текстур
+const playerImage = new Image();
+playerImage.src = 'assets/hero.png';
+const baseImage = new Image();
+baseImage.src = 'assets/chasha.png';
+const zombieImage = new Image();
+zombieImage.src = 'assets/zombie.png';
+const backgroundImage = new Image();
+backgroundImage.src = 'assets/background.jpg';
+
+// Вставьте сюда остальной код из вашего <script> до requestAnimationFrame(gameLoop);
     // Получение канваса и контекста
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
@@ -761,9 +764,3 @@
       requestAnimationFrame(gameLoop);
     }
     gameLoop.lastTimestamp = 0;
-
-    // Запуск игры
-    requestAnimationFrame(gameLoop);
-  </script>
-</body>
-</html>
