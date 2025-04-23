@@ -68,39 +68,46 @@ const weaponSwitchCooldown = 200;
 let isInitialized = false;
 
 socket.on('init', (data) => {
-  localPlayer = data.players[data.id];
-  otherPlayers = data.players;
-  delete otherPlayers[data.id];
-  zombies = data.zombies;
-  bullets = data.bullets;
-  base = data.base;
-  gameState = data.gameState;
-  currentWave = data.currentWave;
-  totalPoints = data.totalPoints;
-  shopState = data.shopState;
-  isInitialized = true;
-  console.log('Инициализация клиента завершена:', data.id);
+  console.log('Получены данные init:', data);
+  if (data.id && data.players[data.id]) {
+    localPlayer = data.players[data.id];
+    otherPlayers = { ...data.players };
+    delete otherPlayers[data.id];
+    zombies = data.zombies || [];
+    bullets = data.bullets || [];
+    base = data.base || {};
+    gameState = data.gameState || 'ready_for_first_wave';
+    currentWave = data.currentWave || 0;
+    totalPoints = data.totalPoints || 0;
+    shopState = data.shopState || {};
+    isInitialized = true;
+    console.log('Инициализация клиента завершена, localPlayer:', localPlayer);
+  } else {
+    console.error('Ошибка инициализации: некорректный id или данные игрока', data);
+  }
 });
 
 socket.on('gameState', (data) => {
-  otherPlayers = data.players;
+  console.log('Получены данные gameState:', data);
+  otherPlayers = data.players || {};
   if (localPlayer && data.players[socket.id]) {
     localPlayer.health = data.players[socket.id].health;
     localPlayer.weapons = data.players[socket.id].weapons;
     localPlayer.currentWeapon = data.players[socket.id].currentWeapon;
   }
   delete otherPlayers[socket.id];
-  zombies = data.zombies;
-  bullets = data.bullets;
-  base = data.base;
-  gameState = data.gameState;
-  currentWave = data.currentWave;
-  totalPoints = data.totalPoints;
+  zombies = data.zombies || [];
+  bullets = data.bullets || [];
+  base = data.base || {};
+  gameState = data.gameState || 'ready_for_first_wave';
+  currentWave = data.currentWave || 0;
+  totalPoints = data.totalPoints || 0;
 });
 
 socket.on('gameStateUpdate', (data) => {
-  gameState = data.gameState;
-  currentWave = data.currentWave;
+  console.log('Получены данные gameStateUpdate:', data);
+  gameState = data.gameState || 'ready_for_first_wave';
+  currentWave = data.currentWave || 0;
   if (data.base) base = data.base;
   if (data.players) {
     otherPlayers = data.players;
@@ -117,6 +124,7 @@ socket.on('gameStateUpdate', (data) => {
 });
 
 socket.on('shopUpdate', (newShopState) => {
+  console.log('Получены данные shopUpdate:', newShopState);
   shopState = newShopState;
   if (localPlayer) {
     localPlayer.weapons.automatic = { ...shopState.automatic };
@@ -126,6 +134,7 @@ socket.on('shopUpdate', (newShopState) => {
 });
 
 socket.on('playerDisconnected', (id) => {
+  console.log('Игрок отключился:', id);
   delete otherPlayers[id];
 });
 
@@ -241,7 +250,8 @@ function update(deltaTime) {
 function render() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.drawImage(backgroundImage, 0, 0, canvas.width, canvas.height);
-  if (base && base.x && base.width) {
+
+  if (base && base.x && base.width && base.y && base.height) {
     ctx.drawImage(baseImage, base.x - base.width / 2, base.y - base.height / 2, base.width, base.height);
   }
 
@@ -303,9 +313,9 @@ function render() {
     uiDiv.querySelector('#player-health').textContent = localPlayer && localPlayer.health !== undefined ? `Игрок: ${Math.round(localPlayer.health)}/100` : 'Игрок: -/-';
     uiDiv.querySelector('#wave').textContent = `Волна: ${currentWave}`;
     uiDiv.querySelector('#points').textContent = `Очки: ${totalPoints}`;
-    uiDiv.querySelector('#weapon').textContent = localPlayer ? `Оружие: ${weapons[localPlayer.currentWeapon].name}` : 'Оружие: -';
-    uiDiv.querySelector('#ammo').textContent = localPlayer && localPlayer.weapons ? `Патроны: ${localPlayer.weapons[localPlayer.currentWeapon].clipAmmo}/${localPlayer.weapons[localPlayer.currentWeapon].reserveAmmo}` : 'Патроны: -/-';
-    uiDiv.querySelector('#zombies').textContent = gameState === 'playing' ? `Зомби: ${totalZombiesToSpawn - zombiesSpawned + zombies.length}` : 'Зомби: 0';
+    uiDiv.querySelector('#weapon').textContent = localPlayer && localPlayer.currentWeapon ? `Оружие: ${weapons[localPlayer.currentWeapon].name}` : 'Оружие: -';
+    uiDiv.querySelector('#ammo').textContent = localPlayer && localPlayer.weapons && localPlayer.currentWeapon ? `Патроны: ${localPlayer.weapons[localPlayer.currentWeapon].clipAmmo}/${localPlayer.weapons[localPlayer.currentWeapon].reserveAmmo}` : 'Патроны: -/-';
+    uiDiv.querySelector('#zombies').textContent = gameState === 'playing' ? `Зомби: ${zombies.length}` : 'Зомби: 0';
   }
 
   shopDiv.style.display = gameState === 'shop' ? 'block' : 'none';
@@ -313,13 +323,13 @@ function render() {
     shopDiv.querySelector('#shop-points').textContent = `Очки: ${totalPoints}`;
     shopDiv.querySelectorAll('.shop-button').forEach(button => {
       const action = button.getAttribute('data-action');
-      if (action === 'automatic' && shopState.automatic.owned) button.style.display = 'none';
-      else if (action === 'shotgun' && shopState.shotgun.owned) button.style.display = 'none';
-      else if (action === 'machinegun' && shopState.machinegun.owned) button.style.display = 'none';
-      else if (action === 'firingRate' && shopState[localPlayer.currentWeapon].firingRateLevel >= 5) button.style.display = 'none';
-      else if (action === 'damage' && shopState[localPlayer.currentWeapon].damageLevel >= 5) button.style.display = 'none';
-      else if (action === 'reload' && shopState[localPlayer.currentWeapon].reloadLevel >= 5) button.style.display = 'none';
-      else if (action === 'ammoCapacity' && shopState[localPlayer.currentWeapon].ammoCapacityLevel >= 5) button.style.display = 'none';
+      if (action === 'automatic' && shopState.automatic && shopState.automatic.owned) button.style.display = 'none';
+      else if (action === 'shotgun' && shopState.shotgun && shopState.shotgun.owned) button.style.display = 'none';
+      else if (action === 'machinegun' && shopState.machinegun && shopState.machinegun.owned) button.style.display = 'none';
+      else if (action === 'firingRate' && shopState[localPlayer.currentWeapon] && shopState[localPlayer.currentWeapon].firingRateLevel >= 5) button.style.display = 'none';
+      else if (action === 'damage' && shopState[localPlayer.currentWeapon] && shopState[localPlayer.currentWeapon].damageLevel >= 5) button.style.display = 'none';
+      else if (action === 'reload' && shopState[localPlayer.currentWeapon] && shopState[localPlayer.currentWeapon].reloadLevel >= 5) button.style.display = 'none';
+      else if (action === 'ammoCapacity' && shopState[localPlayer.currentWeapon] && shopState[localPlayer.currentWeapon].ammoCapacityLevel >= 5) button.style.display = 'none';
       else button.style.display = 'block';
     });
   }
@@ -347,6 +357,7 @@ loadImages(imageSources, (loadedImages) => {
   zombieImage = loadedImages['assets/zombie.png'];
   backgroundImage = loadedImages['assets/background.jpg'];
   console.log('Все текстуры загружены');
+  requestAnimationFrame(gameLoop);
 });
 
 socket.on('connect', () => {
