@@ -1,43 +1,36 @@
 <script type="text/javascript">
-        var gk_isXlsx = false;
-        var gk_xlsxFileLookup = {};
-        var gk_fileData = {};
-        function filledCell(cell) {
-          return cell !== '' && cell != null;
-        }
-        function loadFileData(filename) {
-        if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
-            try {
-                var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
-                var firstSheetName = workbook.SheetNames[0];
-                var worksheet = workbook.Sheets[firstSheetName];
-
-                // Convert sheet to JSON to filter blank rows
-                var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
-                // Filter out blank rows (rows where all cells are empty, null, or undefined)
-                var filteredData = jsonData.filter(row => row.some(filledCell));
-
-                // Heuristic to find the header row by ignoring rows with fewer filled cells than the next row
-                var headerRowIndex = filteredData.findIndex((row, index) =>
-                  row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
-                );
-                // Fallback
-                if (headerRowIndex === -1 || headerRowIndex > 25) {
-                  headerRowIndex = 0;
-                }
-
-                // Convert filtered JSON back to CSV
-                var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex)); // Create a new sheet from filtered array of arrays
-                csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
-                return csv;
-            } catch (e) {
-                console.error(e);
-                return "";
-            }
-        }
-        return gk_fileData[filename] || "";
-        }
-        </script><!DOCTYPE html>
+var gk_isXlsx = false;
+var gk_xlsxFileLookup = {};
+var gk_fileData = {};
+function filledCell(cell) {
+  return cell !== '' && cell != null;
+}
+function loadFileData(filename) {
+  if (gk_isXlsx && gk_xlsxFileLookup[filename]) {
+    try {
+      var workbook = XLSX.read(gk_fileData[filename], { type: 'base64' });
+      var firstSheetName = workbook.SheetNames[0];
+      var worksheet = workbook.Sheets[firstSheetName];
+      var jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, blankrows: false, defval: '' });
+      var filteredData = jsonData.filter(row => row.some(filledCell));
+      var headerRowIndex = filteredData.findIndex((row, index) =>
+        row.filter(filledCell).length >= filteredData[index + 1]?.filter(filledCell).length
+      );
+      if (headerRowIndex === -1 || headerRowIndex > 25) {
+        headerRowIndex = 0;
+      }
+      var csv = XLSX.utils.aoa_to_sheet(filteredData.slice(headerRowIndex));
+      csv = XLSX.utils.sheet_to_csv(csv, { header: 1 });
+      return csv;
+    } catch (e) {
+      console.error(e);
+      return "";
+    }
+  }
+  return gk_fileData[filename] || "";
+}
+</script>
+<!DOCTYPE html>
 <html lang="ru">
 <head>
   <meta charset="UTF-8">
@@ -46,11 +39,72 @@
     canvas {
       border: 1px solid black;
     }
+    #game-container {
+      position: relative;
+      width: 800px;
+      height: 600px;
+      margin: 0 auto;
+    }
+    #ui {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      color: white;
+      font-family: Arial, sans-serif;
+      font-size: 16px;
+    }
+    #shop {
+      display: none;
+      position: absolute;
+      top: 100px;
+      left: 300px;
+      background: rgba(0, 0, 0, 0.8);
+      padding: 20px;
+      color: white;
+      font-family: Arial, sans-serif;
+      font-size: 16px;
+    }
+    .shop-button {
+      background: gray;
+      padding: 5px;
+      margin: 5px 0;
+      cursor: pointer;
+    }
+    .shop-button:hover {
+      background: darkgray;
+    }
   </style>
 </head>
 <body>
-  <canvas id="gameCanvas" width="800" height="600"></canvas>
+  <div id="game-container">
+    <canvas id="gameCanvas" width="800" height="600"></canvas>
+    <div id="ui">
+      <div id="base-health">База: 100/100</div>
+      <div id="player-health">Игрок: 100/100</div>
+      <div id="wave">Волна: 0</div>
+      <div id="points">Очки: 0</div>
+      <div id="weapon">Оружие: Пистолет</div>
+      <div id="ammo">Патроны: 7/46</div>
+      <div id="zombies">Зомби: 0</div>
+    </div>
+    <div id="shop">
+      <h3>Магазин</h3>
+      <div id="shop-points">Очки: 0</div>
+      <div class="shop-button" data-action="automatic">Купить автомат (50 очков)</div>
+      <div class="shop-button" data-action="shotgun">Купить дробовик (70 очков)</div>
+      <div class="shop-button" data-action="machinegun">Купить пулемёт (500 очков)</div>
+      <div class="shop-button" data-action="playerHealth">Аптечка для игрока (10 очков, +20 здоровья)</div>
+      <div class="shop-button" data-action="baseHealth">Ремонт базы (10 очков, +20 здоровья)</div>
+      <div class="shop-button" data-action="firingRate">Улучшить скорострельность (20 очков, +10%)</div>
+      <div class="shop-button" data-action="damage">Улучшить урон (20 очков, +10%)</div>
+      <div class="shop-button" data-action="reload">Улучшить перезарядку (20 очков, +10%)</div>
+      <div class="shop-button" data-action="ammoCapacity">Улучшить боезапас (20 очков, +10%)</div>
+      <div class="shop-button" data-action="ammo">Пополнить все патроны (50 очков)</div>
+      <div class="shop-button" data-action="exit">Выйти</div>
+    </div>
+  </div>
   <script src="/socket.io/socket.io.js"></script>
   <script src="game.js"></script>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'934e59f70fe67bc3',t:'MTc0NTQyMTY5NC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script>
 </body>
 </html>
